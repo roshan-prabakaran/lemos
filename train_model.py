@@ -12,7 +12,7 @@ data = {
 df = pd.DataFrame(data)
 
 # Define 'toxic' if methane > 500 and humidity > 60
-df["danger"] = ((df["methane"] > 500) & (df["humidity"] > 60)).astype(int)
+df["danger"] = ((df["methane"] >100) & (df["humidity"] > 60)).astype(int)
 
 # Train model
 X = df[["methane", "humidity"]]
