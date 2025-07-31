@@ -1,21 +1,297 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>LEMOS Dashboard</title>
-  <style>body { font-family: Arial; background: #111; color: #0f0; }</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emissions Monitoring Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+    </style>
 </head>
-<body>
-  <h1>LEMOS - Landfill Gas Monitoring</h1>
-  <pre id="liveData">Loading...</pre>
+<body class="bg-gray-50">
+    <div class="min-h-screen">
+        <!-- Navigation -->
+        <nav class="bg-green-600 text-white shadow-lg">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <h1 class="text-2xl font-bold">🌱 Emissions Monitor</h1>
+                <div class="text-sm">
+                    <span id="current-time" class="mr-4"></span>
+                    <span id="last-updated">Last updated: --</span>
+                </div>
+            </div>
+        </nav>
 
-  <script>
-    async function loadData() {
-      const res = await fetch("/api/data");
-      const text = await res.text();
-      document.getElementById("liveData").textContent = text;
-    }
-    setInterval(loadData, 5000);
-    loadData();
-  </script>
+        <!-- Main Content -->
+        <div class="container mx-auto px-4 py-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <!-- Methane Level Card -->
+                <div class="card bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Methane Level</h2>
+                    <div class="flex items-center justify-between">
+                        <div class="text-4xl font-bold" id="methane-value">--</div>
+                        <div class="w-24 h-24">
+                            <canvas id="methane-gauge"></canvas>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-600">
+                        <span id="methane-status" class="px-2 py-1 rounded-full">No data</span>
+                    </div>
+                </div>
+
+                <!-- Humidity Level Card -->
+                <div class="card bg-white rounded-lg shadow p-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Humidity Level</h2>
+                    <div class="flex items-center justify-between">
+                        <div class="text-4xl font-bold" id="humidity-value">--</div>
+                        <div class="w-24 h-24">
+                            <canvas id="humidity-gauge"></canvas>
+                        </div>
+                    </div>
+                    <div class="mt-4 text-sm text-gray-600">
+                        <span id="humidity-status" class="px-2 py-1 rounded-full">No data</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Chart -->
+            <div class="card bg-white rounded-lg shadow p-6 mb-8">
+                <h2 class="text-xl font-semibold text-gray-800 mb-4">Historical Data</h2>
+                <div class="h-80">
+                    <canvas id="data-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Readings Table -->
+            <div class="card bg-white rounded-lg shadow overflow-hidden">
+                <h2 class="text-xl font-semibold text-gray-800 p-6 pb-0">Recent Readings</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Timestamp</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Methane</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Humidity</th>
+                            </tr>
+                        </thead>
+                        <tbody id="readings-table" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="3" class="px-6 py-4 text-center text-gray-500">Loading data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Update current time
+        function updateCurrentTime() {
+            const now = new Date();
+            document.getElementById('current-time').textContent = now.toLocaleString();
+        }
+        setInterval(updateCurrentTime, 1000);
+        updateCurrentTime();
+
+        // Gauge charts
+        const methaneGauge = createGauge('methane-gauge', 'Methane', '#10B981');
+        const humidityGauge = createGauge('humidity-gauge', 'Humidity', '#3B82F6');
+
+        function createGauge(id, label, color) {
+            const ctx = document.getElementById(id).getContext('2d');
+            return new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: [label, ''],
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor: [color, '#E5E7EB'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    cutout: '80%',
+                    rotation: -90,
+                    circumference: 180,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    },
+                    animation: { animateRotate: false }
+                }
+            });
+        }
+
+        // Main chart
+        const dataChart = new Chart(document.getElementById('data-chart'), {
+            type: 'line',
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        title: { display: true, text: 'Time' }
+                    },
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // Fetch and update data
+        let chartData = { labels: [], methane: [], humidity: [] };
+
+        async function fetchData() {
+            try {
+                const response = await fetch('/api/data');
+                const text = await response.text();
+                
+                if (text === 'No data') {
+                    document.getElementById('readings-table').innerHTML = 
+                        '<tr><td colspan="3" class="px-6 py-4 text-center text-gray-500">No data available</td></tr>';
+                    return;
+                }
+
+                const rows = text.trim().split('\n');
+                const headers = rows[0].split(',');
+                const data = rows.slice(1).map(row => {
+                    const values = row.split(',');
+                    return headers.reduce((obj, header, i) => {
+                        obj[header] = values[i];
+                        return obj;
+                    }, {});
+                });
+
+                // Update table
+                updateTable(data.slice(-10).reverse());
+
+                // Update chart data
+                updateChartData(data);
+
+                // Update gauges and latest values
+                if (data.length > 0) {
+                    const latest = data[data.length - 1];
+                    updateGauge(methaneGauge, latest.methane, 100);
+                    updateGauge(humidityGauge, latest.humidity, 100);
+                    
+                    document.getElementById('methane-value').textContent = latest.methane;
+                    document.getElementById('humidity-value').textContent = latest.humidity + '%';
+                    
+                    document.getElementById('methane-status').textContent = getMethaneStatus(latest.methane);
+                    document.getElementById('methane-status').className = 'px-2 py-1 rounded-full ' + getMethaneStatusClass(latest.methane);
+                    document.getElementById('humidity-status').textContent = getHumidityStatus(latest.humidity);
+                    document.getElementById('humidity-status').className = 'px-2 py-1 rounded-full ' + getHumidityStatusClass(latest.humidity);
+                    
+                    document.getElementById('last-updated').textContent = 'Last updated: ' + new Date(latest.timestamp).toLocaleString();
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+            }
+        }
+
+        function updateTable(data) {
+            const tableBody = document.getElementById('readings-table');
+            tableBody.innerHTML = data.map(item => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(item.timestamp).toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${getTextColorClass(item.methane, true)}">${item.methane}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm ${getTextColorClass(item.humidity, false)}">${item.humidity}%</td>
+                </tr>
+            `).join('');
+        }
+
+        function updateChartData(data) {
+            chartData = {
+                labels: data.slice(-50).map(item => new Date(item.timestamp).toLocaleTimeString()),
+                methane: data.slice(-50).map(item => parseFloat(item.methane)),
+                humidity: data.slice(-50).map(item => parseFloat(item.humidity))
+            };
+
+            dataChart.data = {
+                labels: chartData.labels,
+                datasets: [
+                    {
+                        label: 'Methane',
+                        data: chartData.methane,
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    },
+                    {
+                        label: 'Humidity (%)',
+                        data: chartData.humidity,
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }
+                ]
+            };
+            dataChart.update();
+        }
+
+        function updateGauge(chart, value, max) {
+            chart.data.datasets[0].data = [value, max - value];
+            chart.update();
+        }
+
+        function getMethaneStatus(value) {
+            value = parseFloat(value);
+            if (value < 1) return 'Excellent';
+            if (value < 2) return 'Good';
+            if (value < 5) return 'Moderate';
+            return 'High';
+        }
+
+        function getMethaneStatusClass(value) {
+            value = parseFloat(value);
+            if (value < 1) return 'bg-green-100 text-green-800';
+            if (value < 2) return 'bg-blue-100 text-blue-800';
+            if (value < 5) return 'bg-yellow-100 text-yellow-800';
+            return 'bg-red-100 text-red-800';
+        }
+
+        function getHumidityStatus(value) {
+            value = parseFloat(value);
+            if (value < 30) return 'Low';
+            if (value < 60) return 'Normal';
+            return 'High';
+        }
+
+        function getHumidityStatusClass(value) {
+            value = parseFloat(value);
+            if (value < 30) return 'bg-yellow-100 text-yellow-800';
+            if (value < 60) return 'bg-green-100 text-green-800';
+            return 'bg-blue-100 text-blue-800';
+        }
+
+        function getTextColorClass(value, isMethane) {
+            value = parseFloat(value);
+            if (isMethane) {
+                if (value < 1) return 'text-green-600';
+                if (value < 2) return 'text-blue-600';
+                if (value < 5) return 'text-yellow-600';
+                return 'text-red-600';
+            } else {
+                if (value < 30) return 'text-yellow-600';
+                if (value < 60) return 'text-green-600';
+                return 'text-blue-600';
+            }
+        }
+
+        // Initial fetch and set interval
+        fetchData();
+        setInterval(fetchData, 5000);
+    </script>
 </body>
 </html>
