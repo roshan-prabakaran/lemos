@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>LEMOS Dashboard</title>
+  <style>body { font-family: Arial; background: #111; color: #0f0; }</style>
+</head>
+<body>
+  <h1>LEMOS - Landfill Gas Monitoring</h1>
+  <pre id="liveData">Loading...</pre>
+
+  <script>
+    async function loadData() {
+      const res = await fetch("/api/data");
+      const text = await res.text();
+      document.getElementById("liveData").textContent = text;
+    }
+    setInterval(loadData, 5000);
+    loadData();
+  </script>
+</body>
+</html>
