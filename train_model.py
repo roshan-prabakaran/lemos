@@ -6,20 +6,24 @@ import pickle
 # Simulate dataset
 np.random.seed(42)
 data = {
-    "methane": np.random.randint(100, 800, 300),
-    "humidity": np.random.uniform(20, 90, 300)
+    "methane": np.random.randint(100, 800, 300),  # Methane levels
+    "humidity": np.random.uniform(20, 90, 300)    # Humidity levels
 }
 df = pd.DataFrame(data)
 
-# Define 'toxic' if methane > 500 and humidity > 60
-df["danger"] = ((df["methane"] >100) & (df["humidity"] > 60)).astype(int)
+# Define 'danger' if methane > 500 ppm and humidity > 60%
+df["danger"] = ((df["methane"] > 500) & (df["humidity"] > 60)).astype(int)
 
-# Train model
+# Split features and target
 X = df[["methane", "humidity"]]
 y = df["danger"]
-model = RandomForestClassifier()
+
+# Train Random Forest model
+model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X, y)
 
-# Save model
+# Save model to file
 with open("model.pkl", "wb") as f:
     pickle.dump(model, f)
+
+print("✅ Model trained and saved as model.pkl")
