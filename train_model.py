@@ -17,7 +17,7 @@ df = pd.DataFrame(data)
 # Define Danger Condition
 # -------------------------------
 # Danger = 1 if methane > 500 ppm and humidity > 60%
-df["danger"] = ((df["methane"] > 500) & (df["humidity"] > 60)).astype(int)
+df["danger"] = ((df["methane"] > 250) & (df["humidity"] > 60)).astype(int)
 
 # -------------------------------
 # Prepare Features and Target
@@ -38,3 +38,4 @@ with open("model.pkl", "wb") as f:
     pickle.dump(model, f)
 
 print("✅ Model trained and saved as model.pkl")
+
